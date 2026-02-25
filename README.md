@@ -1,3 +1,3 @@
-# Syllabus-to-Schedule
+# GatorSync
 
 Work in Progress
