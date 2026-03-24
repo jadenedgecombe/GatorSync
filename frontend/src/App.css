@@ -228,6 +228,11 @@ body {
 
 .sidebar-overlay {
   display: none;
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  z-index: -1;
+  pointer-events: none;
 }
 
 /* ========== Page Shared ========== */
@@ -756,6 +761,43 @@ body {
   font-size: 0.8rem;
   color: var(--color-text-muted);
   margin-top: var(--space-xs);
+}
+
+/* ========== Auth Layout ========== */
+.auth-layout {
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+
+.auth-layout-brand {
+  padding: var(--space-lg) var(--space-xl);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.auth-layout-content {
+  max-width: 520px;
+  margin: var(--space-2xl) auto;
+  padding: 0 var(--space-md);
+}
+
+/* ========== Sidebar Logout ========== */
+.sidebar-logout-btn {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  transition: all 0.15s ease;
+}
+
+.sidebar-logout-btn:hover {
+  background: var(--color-danger-light);
+  color: var(--color-danger);
+  border-color: var(--color-danger);
 }
 
 /* ========== Responsive ========== */

@@ -21,9 +21,10 @@ const labelStyle = {
   marginBottom: "var(--space-xs)",
 };
 
-function Login() {
-  const { login } = useAuth();
+function Signup() {
+  const { register } = useAuth();
   const navigate = useNavigate();
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -32,9 +33,15 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await login(email, password);
+      await register(email, displayName, password);
       navigate("/dashboard");
     } catch (err) {
       setError(err.message);
@@ -46,8 +53,8 @@ function Login() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1 className="page-title">Welcome Back</h1>
-        <p className="page-subtitle">Sign in to access your schedule and tasks.</p>
+        <h1 className="page-title">Create Account</h1>
+        <p className="page-subtitle">Join GatorSync to manage your academic schedule.</p>
       </div>
 
       <div className="card" style={{ maxWidth: 420 }}>
@@ -69,6 +76,18 @@ function Login() {
               {error}
             </div>
           )}
+
+          <div>
+            <label style={labelStyle}>Display Name</label>
+            <input
+              type="text"
+              placeholder="Your name"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              required
+              style={inputStyle}
+            />
+          </div>
 
           <div>
             <label style={labelStyle}>Email</label>
@@ -105,7 +124,7 @@ function Login() {
               opacity: submitting ? 0.6 : 1,
             }}
           >
-            {submitting ? "Signing in..." : "Sign In"}
+            {submitting ? "Creating account..." : "Create Account"}
           </button>
 
           <p
@@ -115,9 +134,9 @@ function Login() {
               textAlign: "center",
             }}
           >
-            Don't have an account?{" "}
-            <Link to="/signup" style={{ color: "var(--color-primary)", fontWeight: 600 }}>
-              Sign up
+            Already have an account?{" "}
+            <Link to="/login" style={{ color: "var(--color-primary)", fontWeight: 600 }}>
+              Sign in
             </Link>
           </p>
         </form>
@@ -126,4 +145,4 @@ function Login() {
   );
 }
 
-export default Login;
+export default Signup;

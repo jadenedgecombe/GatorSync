@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 /* ---- Mock data ---- */
 const stats = [
@@ -77,11 +78,14 @@ function MiniCalendar() {
 
 /* ---- Dashboard ---- */
 function Dashboard() {
+  const { user } = useAuth();
+  const firstName = user?.display_name?.split(" ")[0] || "Gator";
+
   return (
     <div className="page">
       {/* Hero */}
       <div className="hero-banner">
-        <h1 className="hero-greeting">Good morning, Gator!</h1>
+        <h1 className="hero-greeting">Good morning, {firstName}!</h1>
         <p className="hero-message">
           You have 8 upcoming tasks and 3 reminders today. Stay on track — you're doing great.
         </p>
