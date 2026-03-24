@@ -76,18 +76,30 @@ function MiniCalendar() {
   );
 }
 
+/* ---- Time-aware greeting ---- */
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 /* ---- Dashboard ---- */
 function Dashboard() {
   const { user } = useAuth();
   const firstName = user?.display_name?.split(" ")[0] || "Gator";
+  const isStaff = user?.role === "admin" || user?.role === "ta";
 
   return (
     <div className="page">
       {/* Hero */}
       <div className="hero-banner">
-        <h1 className="hero-greeting">Good morning, {firstName}!</h1>
+        <h1 className="hero-greeting">{getGreeting()}, {firstName}!</h1>
         <p className="hero-message">
-          You have 8 upcoming tasks and 3 reminders today. Stay on track — you're doing great.
+          {isStaff
+            ? `You're signed in as ${user.role === "admin" ? "an administrator" : "a teaching assistant"}. You have 8 upcoming tasks and 3 reminders today.`
+            : "You have 8 upcoming tasks and 3 reminders today. Stay on track — you're doing great."
+          }
         </p>
         <div className="hero-actions">
           <Link to="/upload" className="hero-btn white">
@@ -96,6 +108,11 @@ function Dashboard() {
           <Link to="/calendar" className="hero-btn ghost">
             {"\uD83D\uDCC5"} View Calendar
           </Link>
+          {isStaff && (
+            <Link to="/admin" className="hero-btn ghost">
+              {"\u2699\uFE0F"} Admin Panel
+            </Link>
+          )}
         </div>
       </div>
 
@@ -118,7 +135,10 @@ function Dashboard() {
           </Link>
           <button className="quick-action-btn">{"\uD83D\uDCE4"} Export Schedule</button>
           <button className="quick-action-btn">{"\uD83D\uDC65"} Find Study Group</button>
-          <button className="quick-action-btn">{"\u2699\uFE0F"} Preferences</button>
+          <Link to="/profile" className="quick-action-btn">{"\uD83D\uDC64"} My Profile</Link>
+          {isStaff && (
+            <Link to="/admin" className="quick-action-btn">{"\u2699\uFE0F"} Admin Panel</Link>
+          )}
         </div>
       </div>
 

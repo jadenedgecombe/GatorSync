@@ -781,6 +781,118 @@ body {
   padding: 0 var(--space-md);
 }
 
+/* ========== Profile Page ========== */
+.profile-avatar-lg {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+.profile-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.profile-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.profile-row:last-child {
+  border-bottom: none;
+}
+
+.profile-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.profile-value {
+  font-size: 0.88rem;
+  color: var(--color-text);
+}
+
+.role-display {
+  padding: var(--space-md) 0;
+}
+
+.role-badge-lg {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-full);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.role-badge-lg.student {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.role-badge-lg.ta {
+  background: var(--color-warning-light);
+  color: #b8860b;
+}
+
+.role-badge-lg.admin {
+  background: var(--color-danger-light);
+  color: var(--color-danger);
+}
+
+.permissions-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.permission-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.permission-item::before {
+  font-size: 0.9rem;
+}
+
+.permission-item.granted {
+  color: var(--color-success);
+  background: var(--color-success-light);
+}
+
+.permission-item.granted::before {
+  content: "\2713";
+}
+
+.permission-item.denied {
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  text-decoration: line-through;
+}
+
+.permission-item.denied::before {
+  content: "\2717";
+}
+
 /* ========== Sidebar Logout ========== */
 .sidebar-logout-btn {
   margin-left: auto;

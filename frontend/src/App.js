@@ -9,10 +9,9 @@ import Dashboard from "./pages/Dashboard";
 import SyllabusUpload from "./pages/SyllabusUpload";
 import Calendar from "./pages/Calendar";
 import AdminPanel from "./pages/AdminPanel";
+import Profile from "./pages/Profile";
+import Forbidden from "./pages/Forbidden";
 import "./App.css";
-
-const ROLE_LABELS = { student: "Student", ta: "TA", admin: "Admin" };
-const ROLE_COLORS = { admin: "urgent", ta: "soon", student: "normal" };
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -45,6 +44,8 @@ function App() {
       </div>
     );
   }
+
+  const isStaff = user && (user.role === "admin" || user.role === "ta");
 
   return (
     <div className="app-layout">
@@ -99,8 +100,7 @@ function App() {
             Calendar
           </NavLink>
 
-          {/* Admin/TA only link */}
-          {user && (user.role === "admin" || user.role === "ta") && (
+          {isStaff && (
             <>
               <span className="sidebar-section-label">Staff</span>
               <NavLink
@@ -113,6 +113,17 @@ function App() {
               </NavLink>
             </>
           )}
+
+          <span className="sidebar-section-label">Account</span>
+
+          <NavLink
+            to="/profile"
+            className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
+            onClick={closeSidebar}
+          >
+            <span className="sidebar-link-icon">{"\uD83D\uDC64"}</span>
+            My Profile
+          </NavLink>
         </nav>
 
         <div className="sidebar-footer">
@@ -152,7 +163,13 @@ function App() {
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/upload" element={<ProtectedRoute><SyllabusUpload /></ProtectedRoute>} />
           <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/admin" element={
+            <ProtectedRoute>
+              {isStaff ? <AdminPanel /> : <Forbidden />}
+            </ProtectedRoute>
+          } />
+          <Route path="/forbidden" element={<Forbidden />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
         </Routes>

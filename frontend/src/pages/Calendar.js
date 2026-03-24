@@ -1,4 +1,5 @@
 import React from "react";
+import { useAuth } from "../context/AuthContext";
 
 const events = [
   { time: "9:00 AM", name: "COP 3530 — Data Structures", location: "CSE E121", color: "blue" },
@@ -10,6 +11,8 @@ const events = [
 ];
 
 function Calendar() {
+  const { user } = useAuth();
+
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
@@ -20,7 +23,7 @@ function Calendar() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1 className="page-title">Calendar</h1>
+        <h1 className="page-title">{user?.display_name}'s Calendar</h1>
         <p className="page-subtitle">{today}</p>
       </div>
 

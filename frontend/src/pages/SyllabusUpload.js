@@ -1,6 +1,9 @@
 import React from "react";
+import { useAuth } from "../context/AuthContext";
 
 function SyllabusUpload() {
+  const { user } = useAuth();
+
   return (
     <div className="page">
       <div className="page-header">
@@ -23,7 +26,7 @@ function SyllabusUpload() {
 
         <div className="card">
           <div className="card-header">
-            <h3 className="card-title">Uploaded Syllabi</h3>
+            <h3 className="card-title">{user?.display_name}'s Syllabi</h3>
             <span className="card-badge">0 files</span>
           </div>
           <div className="empty-state">
