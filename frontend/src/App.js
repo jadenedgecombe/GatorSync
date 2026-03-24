@@ -2,12 +2,17 @@ import React, { useState } from "react";
 import { Routes, Route, NavLink, Link, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import RoleGuard from "./components/RoleGuard";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import SyllabusUpload from "./pages/SyllabusUpload";
 import Calendar from "./pages/Calendar";
+import AdminPanel from "./pages/AdminPanel";
 import "./App.css";
+
+const ROLE_LABELS = { student: "Student", ta: "TA", admin: "Admin" };
+const ROLE_COLORS = { admin: "urgent", ta: "soon", student: "normal" };
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -16,10 +21,8 @@ function App() {
 
   const closeSidebar = () => setSidebarOpen(false);
 
-  // Show minimal layout for login/signup (no sidebar)
   const isAuthPage = location.pathname === "/login" || location.pathname === "/signup";
 
-  // While checking auth state, show nothing to prevent layout flicker
   if (loading && !isAuthPage) {
     return null;
   }
@@ -45,7 +48,6 @@ function App() {
 
   return (
     <div className="app-layout">
-      {/* Mobile menu button */}
       <button
         className="mobile-menu-btn"
         onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -54,13 +56,11 @@ function App() {
         {sidebarOpen ? "\u2715" : "\u2630"}
       </button>
 
-      {/* Overlay for mobile */}
       <div
         className={`sidebar-overlay ${sidebarOpen ? "open" : ""}`}
         onClick={closeSidebar}
       />
 
-      {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <Link to="/" className="sidebar-brand" onClick={closeSidebar}>
           <div className="sidebar-logo">G</div>
@@ -98,6 +98,21 @@ function App() {
             <span className="sidebar-link-icon">{"\uD83D\uDCC5"}</span>
             Calendar
           </NavLink>
+
+          {/* Admin/TA only link */}
+          {user && (user.role === "admin" || user.role === "ta") && (
+            <>
+              <span className="sidebar-section-label">Staff</span>
+              <NavLink
+                to="/admin"
+                className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
+                onClick={closeSidebar}
+              >
+                <span className="sidebar-link-icon">{"\u2699\uFE0F"}</span>
+                Admin Panel
+              </NavLink>
+            </>
+          )}
         </nav>
 
         <div className="sidebar-footer">
@@ -131,13 +146,13 @@ function App() {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="main-content">
         <Routes>
           <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/upload" element={<ProtectedRoute><SyllabusUpload /></ProtectedRoute>} />
           <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
         </Routes>
