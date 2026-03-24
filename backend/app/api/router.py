@@ -1,10 +1,11 @@
 from fastapi import APIRouter
 
-from app.api.routes import health
+from app.api.routes import health, db_check
 
 api_router = APIRouter()
 
 api_router.include_router(health.router, tags=["health"])
+api_router.include_router(db_check.router, tags=["database"])
 
 # Future routers — uncomment as features are built:
 # api_router.include_router(auth.router, prefix="/auth", tags=["auth"])

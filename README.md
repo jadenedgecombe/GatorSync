@@ -15,9 +15,14 @@ GatorSync/
 ├── backend/                # FastAPI application layer
 │   ├── app/
 │   │   ├── api/
-│   │   │   └── routes/     # Route handlers (health, auth, syllabus, etc.)
+│   │   │   └── routes/     # Route handlers (health, db_check, etc.)
+│   │   ├── models/         # SQLAlchemy models (User, Role, Course, etc.)
 │   │   ├── config.py       # Settings via pydantic-settings
+│   │   ├── database.py     # DB engine, session, Base class
+│   │   ├── seed.py         # Seed script for initial roles
 │   │   └── main.py         # App entrypoint
+│   ├── alembic/            # Database migrations
+│   │   └── versions/       # Migration files
 │   ├── tests/
 │   ├── .env.example
 │   └── requirements.txt
@@ -62,7 +67,17 @@ docker compose up db -d
 
 Both options make PostgreSQL available at `localhost:5432`.
 
-### 2. Run the backend
+### 2. Configure DATABASE_URL
+
+Edit `backend/.env` and set your PostgreSQL connection string:
+
+```
+DATABASE_URL=postgresql://gatorsync:gatorsync@localhost:5432/gatorsync
+```
+
+If you used the Docker option above, the default value already works.
+
+### 3. Run the backend
 
 ```bash
 cd backend
@@ -75,7 +90,35 @@ uvicorn app.main:app --reload
 
 API available at http://localhost:8000 — interactive docs at http://localhost:8000/docs.
 
-### 3. Run the frontend
+### 4. Run database migrations
+
+```bash
+cd backend
+source .venv/bin/activate
+alembic upgrade head
+```
+
+This creates all tables: roles, users, courses, assignments, tasks, reminders, study_sessions, user_preferences.
+
+### 5. Seed initial roles
+
+```bash
+cd backend
+source .venv/bin/activate
+python -m app.seed
+```
+
+This inserts three roles: **student**, **ta**, **admin**.
+
+### 6. Verify the database is working
+
+Open http://localhost:8000/api/db-check in your browser. You should see:
+
+```json
+{"status": "connected", "database": "PostgreSQL", "roles": ["student", "ta", "admin"]}
+```
+
+### 7. Run the frontend
 
 ```bash
 cd frontend
@@ -108,9 +151,10 @@ cd frontend && npm run lint
 
 ## API Endpoints
 
-| Method | Path        | Description  |
-|--------|-------------|--------------|
-| GET    | /api/health | Health check |
+| Method | Path           | Description                          |
+|--------|----------------|--------------------------------------|
+| GET    | /api/health    | Health check                         |
+| GET    | /api/db-check  | Verify DB connection and list roles  |
 
 More endpoints will be added as features are implemented.
 
@@ -140,8 +184,12 @@ After following the setup steps above, here is what you should be able to verify
 |------|-------------|
 | `backend/app/main.py` | FastAPI app entrypoint — starts the server |
 | `backend/app/config.py` | Central settings — reads from `.env` file |
+| `backend/app/models/` | SQLAlchemy models — one file per entity |
+| `backend/app/database.py` | DB engine, session factory, `get_db` dependency |
+| `backend/app/seed.py` | Seeds roles (student, ta, admin) into the database |
 | `backend/app/api/routes/` | Add new endpoint files here (e.g., `auth.py`, `syllabus.py`) |
 | `backend/app/api/router.py` | Central router — register new route modules here |
+| `backend/alembic/` | Alembic migrations — run `alembic upgrade head` to apply |
 | `backend/tests/` | Backend tests go here — `conftest.py` provides a shared test client |
 | `frontend/src/App.js` | App shell — nav bar and route definitions |
 | `frontend/src/pages/` | Add or edit page components here |
@@ -150,9 +198,8 @@ After following the setup steps above, here is what you should be able to verify
 
 ### What Is Not Built Yet
 
-This scaffold is **structure only** — no business logic has been implemented:
+The database schema is defined and ready, but no business logic has been implemented:
 
-- No database tables (users, syllabi, schedules, etc.)
 - No authentication or login logic
 - No role-based access control
 - No syllabus upload or parsing
