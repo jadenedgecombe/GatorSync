@@ -1,0 +1,21 @@
+# Optional: run PostgreSQL locally via Docker
+# Usage: docker compose up db -d
+
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gatorsync}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gatorsync}
+      POSTGRES_DB: ${POSTGRES_DB:-gatorsync}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  pgdata:
