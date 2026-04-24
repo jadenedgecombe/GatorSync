@@ -29,7 +29,12 @@ class User(Base):
 
     # Relationships
     role = relationship("Role", back_populates="users")
-    courses = relationship("Course", back_populates="user", cascade="all, delete-orphan")
+    courses = relationship(
+        "Course",
+        back_populates="user",
+        foreign_keys="Course.user_id",
+        cascade="all, delete-orphan",
+    )
     reminders = relationship("Reminder", back_populates="user", cascade="all, delete-orphan")
     study_sessions = relationship(
         "StudySession", back_populates="user", cascade="all, delete-orphan"
