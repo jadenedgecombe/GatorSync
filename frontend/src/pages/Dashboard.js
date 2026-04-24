@@ -1,46 +1,57 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { apiGet, apiSend } from "../api";
 
-/* ---- Mock data ---- */
-const stats = [
-  { icon: "\uD83D\uDCDA", label: "Active Courses", value: "5", color: "blue" },
-  { icon: "\u2705", label: "Tasks Done", value: "23", color: "green" },
-  { icon: "\u23F3", label: "Upcoming Due", value: "8", color: "orange" },
-  { icon: "\uD83D\uDD14", label: "Reminders Today", value: "3", color: "red" },
-];
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
 
-const tasks = [
-  { name: "CDA 3101 — Homework 5", meta: "Due Tomorrow, 11:59 PM", tag: "urgent" },
-  { name: "COP 3530 — Project 2 Report", meta: "Due Mar 28", tag: "soon" },
-  { name: "ENC 3246 — Peer Review Draft", meta: "Due Mar 30", tag: "normal" },
-  { name: "CEN 3031 — Sprint 1 Deliverable", meta: "Due Apr 1", tag: "normal" },
-  { name: "STA 3032 — Practice Exam", meta: "Due Apr 3", tag: "normal" },
-];
+// Today in the user's local timezone, formatted as YYYY-MM-DD.
+// Avoids the UTC-midnight off-by-one that shifts evening dates by a day.
+function localTodayIso() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
-const reminders = [
-  { text: "Office hours with Prof. Davis", time: "Today, 2:00 PM", dot: "blue" },
-  { text: "Study group — Data Structures", time: "Today, 5:30 PM", dot: "green" },
-  { text: "Register for Fall courses", time: "Tomorrow, 9:00 AM", dot: "orange" },
-  { text: "CDA 3101 exam review session", time: "Wed, 3:00 PM", dot: "red" },
-];
+function taskTag(dueDate) {
+  if (!dueDate) return { cls: "normal", label: "Upcoming" };
+  const ms = new Date(dueDate).getTime() - Date.now();
+  const days = ms / (1000 * 60 * 60 * 24);
+  if (days <= 1) return { cls: "urgent", label: "Urgent" };
+  if (days <= 3) return { cls: "soon", label: "Soon" };
+  return { cls: "normal", label: "Upcoming" };
+}
 
-const schedule = [
-  { time: "9:00", name: "COP 3530 — Data Structures", location: "CSE E121", color: "blue" },
-  { time: "11:00", name: "CDA 3101 — Computer Organization", location: "NEB 202", color: "green" },
-  { time: "1:00", name: "ENC 3246 — Professional Writing", location: "TUR 2322", color: "orange" },
-  { time: "3:30", name: "CEN 3031 — Software Engineering", location: "CSE E116", color: "blue" },
-];
+function formatDue(dueDate) {
+  if (!dueDate) return "No due date";
+  const d = new Date(dueDate);
+  const now = new Date();
+  const diffDays = Math.round((d - now) / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return `Due Today, ${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  if (diffDays === 1) return `Due Tomorrow, ${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  return `Due ${d.toLocaleDateString([], { month: "short", day: "numeric" })}`;
+}
 
-/* ---- Mini calendar helper ---- */
-function MiniCalendar() {
+function MiniCalendar({ eventDates }) {
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const today = new Date();
   const year = today.getFullYear();
   const month = today.getMonth();
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const eventDays = [5, 12, 15, 19, 22, 28];
+  const eventDayNumbers = new Set(
+    eventDates
+      .map((d) => new Date(d))
+      .filter((d) => d.getFullYear() === year && d.getMonth() === month)
+      .map((d) => d.getDate())
+  );
 
   const cells = [];
   for (let i = 0; i < firstDay; i++) {
@@ -48,19 +59,15 @@ function MiniCalendar() {
   }
   for (let d = 1; d <= daysInMonth; d++) {
     const isToday = d === today.getDate();
-    const hasEvent = eventDays.includes(d);
+    const hasEvent = eventDayNumbers.has(d);
     cells.push(
-      <div
-        key={d}
-        className={`calendar-day${isToday ? " today" : ""}${hasEvent ? " has-event" : ""}`}
-      >
+      <div key={d} className={`calendar-day${isToday ? " today" : ""}${hasEvent ? " has-event" : ""}`}>
         {d}
       </div>
     );
   }
 
   const monthName = today.toLocaleString("default", { month: "long", year: "numeric" });
-
   return (
     <>
       <div className="card-header">
@@ -76,47 +83,89 @@ function MiniCalendar() {
   );
 }
 
-/* ---- Time-aware greeting ---- */
-function getGreeting() {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
-}
-
-/* ---- Dashboard ---- */
 function Dashboard() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
+  const [courses, setCourses] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [reminders, setReminders] = useState([]);
+  const [todaySchedule, setTodaySchedule] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   const firstName = user?.display_name?.split(" ")[0] || "Gator";
   const isStaff = user?.role === "admin" || user?.role === "ta";
 
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    const today = localTodayIso();
+    Promise.all([
+      apiGet("/courses", token),
+      apiGet("/tasks", token),
+      apiGet("/reminders", token),
+      apiGet(`/schedule/day?date=${today}`, token),
+    ])
+      .then(([coursesRes, tasksRes, remindersRes, dayRes]) => {
+        if (cancelled) return;
+        setCourses(coursesRes);
+        setTasks(tasksRes);
+        setReminders(remindersRes);
+        setTodaySchedule(dayRes.tasks || []);
+      })
+      .catch(() => {})
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const completedCount = useMemo(() => tasks.filter((t) => t.is_completed).length, [tasks]);
+  const pendingTasks = useMemo(
+    () =>
+      tasks
+        .filter((t) => !t.is_completed)
+        .sort((a, b) => {
+          if (!a.due_date) return 1;
+          if (!b.due_date) return -1;
+          return new Date(a.due_date) - new Date(b.due_date);
+        })
+        .slice(0, 6),
+    [tasks]
+  );
+  const upcomingCount = pendingTasks.length;
+  const remindersTodayCount = useMemo(() => {
+    const today = new Date().toDateString();
+    return reminders.filter((r) => new Date(r.remind_at).toDateString() === today).length;
+  }, [reminders]);
+
+  const stats = [
+    { icon: "📚", label: "Active Courses", value: String(courses.length), color: "blue" },
+    { icon: "✅", label: "Tasks Done", value: String(completedCount), color: "green" },
+    { icon: "⏳", label: "Upcoming Due", value: String(upcomingCount), color: "orange" },
+    { icon: "🔔", label: "Reminders Today", value: String(remindersTodayCount), color: "red" },
+  ];
+
+  const heroMessage = isStaff
+    ? `You're signed in as ${user.role === "admin" ? "an administrator" : "a teaching assistant"}. ${upcomingCount} upcoming tasks and ${remindersTodayCount} reminders today.`
+    : `You have ${upcomingCount} upcoming task${upcomingCount === 1 ? "" : "s"} and ${remindersTodayCount} reminder${remindersTodayCount === 1 ? "" : "s"} today. Stay on track.`;
+
+  const dismissReminder = (id) => {
+    apiSend(`/reminders/${id}/dismiss`, "POST", null, token)
+      .then(() => setReminders((prev) => prev.filter((r) => r.id !== id)))
+      .catch(() => {});
+  };
+
   return (
     <div className="page">
-      {/* Hero */}
       <div className="hero-banner">
         <h1 className="hero-greeting">{getGreeting()}, {firstName}!</h1>
-        <p className="hero-message">
-          {isStaff
-            ? `You're signed in as ${user.role === "admin" ? "an administrator" : "a teaching assistant"}. You have 8 upcoming tasks and 3 reminders today.`
-            : "You have 8 upcoming tasks and 3 reminders today. Stay on track — you're doing great."
-          }
-        </p>
+        <p className="hero-message">{heroMessage}</p>
         <div className="hero-actions">
-          <Link to="/upload" className="hero-btn white">
-            {"\uD83D\uDCC4"} Upload Syllabus
-          </Link>
-          <Link to="/calendar" className="hero-btn ghost">
-            {"\uD83D\uDCC5"} View Calendar
-          </Link>
-          {isStaff && (
-            <Link to="/admin" className="hero-btn ghost">
-              {"\u2699\uFE0F"} Admin Panel
-            </Link>
-          )}
+          <Link to="/upload" className="hero-btn white">{"📄"} Upload Syllabus</Link>
+          <Link to="/calendar" className="hero-btn ghost">{"📅"} View Calendar</Link>
+          {isStaff && <Link to="/admin" className="hero-btn ghost">{"⚙️"} Admin Panel</Link>}
         </div>
       </div>
 
-      {/* Stats */}
       <div className="stats-grid">
         {stats.map((s, i) => (
           <div className="stat-card" key={i}>
@@ -127,87 +176,117 @@ function Dashboard() {
         ))}
       </div>
 
-      {/* Quick Actions */}
       <div style={{ marginBottom: "var(--space-xl)" }}>
         <div className="quick-actions">
-          <Link to="/upload" className="quick-action-btn primary">
-            + Upload Syllabus
-          </Link>
-          <button className="quick-action-btn">{"\uD83D\uDCE4"} Export Schedule</button>
-          <button className="quick-action-btn">{"\uD83D\uDC65"} Find Study Group</button>
-          <Link to="/profile" className="quick-action-btn">{"\uD83D\uDC64"} My Profile</Link>
-          {isStaff && (
-            <Link to="/admin" className="quick-action-btn">{"\u2699\uFE0F"} Admin Panel</Link>
-          )}
+          <Link to="/upload" className="quick-action-btn primary">+ Upload Syllabus</Link>
+          <Link to="/templates" className="quick-action-btn">{"📚"} Course Templates</Link>
+          <Link to="/calendar" className="quick-action-btn">{"📅"} Weekly Calendar</Link>
+          <Link to="/profile" className="quick-action-btn">{"👤"} My Profile</Link>
+          {isStaff && <Link to="/admin" className="quick-action-btn">{"⚙️"} Admin Panel</Link>}
         </div>
       </div>
 
-      {/* Two-column grid */}
       <div className="dashboard-grid">
-        {/* Upcoming Tasks */}
         <div className="card">
           <div className="card-header">
             <h3 className="card-title">Upcoming Tasks</h3>
-            <span className="card-badge">{tasks.length} pending</span>
+            <span className="card-badge">{pendingTasks.length} pending</span>
           </div>
-          <ul className="task-list">
-            {tasks.map((t, i) => (
-              <li className="task-item" key={i}>
-                <div className="task-checkbox" />
-                <div className="task-info">
-                  <div className="task-name">{t.name}</div>
-                  <div className="task-meta">{t.meta}</div>
-                </div>
-                <span className={`task-tag ${t.tag}`}>
-                  {t.tag === "urgent" ? "Urgent" : t.tag === "soon" ? "Soon" : "Upcoming"}
-                </span>
-              </li>
-            ))}
-          </ul>
+          {loading ? (
+            <div className="empty-state"><p className="empty-state-text">Loading tasks...</p></div>
+          ) : pendingTasks.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">{"🎉"}</div>
+              <p className="empty-state-text">No pending tasks — upload a syllabus to get started.</p>
+            </div>
+          ) : (
+            <ul className="task-list">
+              {pendingTasks.map((t) => {
+                const tag = taskTag(t.due_date);
+                return (
+                  <li className="task-item" key={t.id}>
+                    <div className="task-checkbox" />
+                    <div className="task-info">
+                      <div className="task-name">{t.course_code ? `${t.course_code} — ` : ""}{t.title}</div>
+                      <div className="task-meta">{formatDue(t.due_date)}</div>
+                    </div>
+                    <span className={`task-tag ${tag.cls}`}>{tag.label}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
 
-        {/* Reminders */}
         <div className="card">
           <div className="card-header">
             <h3 className="card-title">Reminders</h3>
-            <span className="card-badge">{reminders.length} today</span>
+            <span className="card-badge">{reminders.length} active</span>
           </div>
-          <div className="reminder-list">
-            {reminders.map((r, i) => (
-              <div className="reminder-item" key={i}>
-                <div className={`reminder-dot ${r.dot}`} />
-                <div>
-                  <div className="reminder-text">{r.text}</div>
-                  <div className="reminder-time">{r.time}</div>
+          {reminders.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">{"🔔"}</div>
+              <p className="empty-state-text">No active reminders.</p>
+            </div>
+          ) : (
+            <div className="reminder-list">
+              {reminders.slice(0, 6).map((r) => (
+                <div className="reminder-item" key={r.id}>
+                  <div className="reminder-dot blue" />
+                  <div style={{ flex: 1 }}>
+                    <div className="reminder-text">{r.title}</div>
+                    <div className="reminder-time">
+                      {new Date(r.remind_at).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => dismissReminder(r.id)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "var(--color-text-muted)",
+                      cursor: "pointer",
+                      fontSize: "1rem",
+                    }}
+                    title="Dismiss"
+                  >
+                    {"✕"}
+                  </button>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Today's Schedule */}
         <div className="card">
           <div className="card-header">
             <h3 className="card-title">Today's Schedule</h3>
-            <span className="card-badge">
-              {schedule.length} classes
-            </span>
+            <span className="card-badge">{todaySchedule.length} tasks</span>
           </div>
-          {schedule.map((s, i) => (
-            <div className="schedule-item" key={i}>
-              <span className="schedule-time">{s.time}</span>
-              <div className={`schedule-bar ${s.color}`} />
-              <div className="schedule-details">
-                <div className="schedule-name">{s.name}</div>
-                <div className="schedule-location">{s.location}</div>
-              </div>
+          {todaySchedule.length === 0 ? (
+            <div className="empty-state">
+              <p className="empty-state-text">Nothing scheduled for today.</p>
             </div>
-          ))}
+          ) : (
+            todaySchedule.map((s, i) => (
+              <div className="schedule-item" key={s.id || i}>
+                <span className="schedule-time">
+                  {s.scheduled_start
+                    ? new Date(s.scheduled_start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+                    : "All day"}
+                </span>
+                <div className="schedule-bar blue" />
+                <div className="schedule-details">
+                  <div className="schedule-name">{s.course_code ? `${s.course_code} — ` : ""}{s.title}</div>
+                  <div className="schedule-location">{s.duration_minutes} min</div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
-        {/* Mini Calendar */}
         <div className="card">
-          <MiniCalendar />
+          <MiniCalendar eventDates={tasks.map((t) => t.due_date).filter(Boolean)} />
         </div>
       </div>
     </div>
