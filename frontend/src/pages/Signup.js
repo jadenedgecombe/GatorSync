@@ -78,37 +78,46 @@ function Signup() {
           )}
 
           <div>
-            <label style={labelStyle}>Display Name</label>
+            <label htmlFor="signup-name" style={labelStyle}>Full Name</label>
             <input
+              id="signup-name"
               type="text"
               placeholder="Your name"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               required
+              aria-required="true"
+              autoComplete="name"
               style={inputStyle}
             />
           </div>
 
           <div>
-            <label style={labelStyle}>Email</label>
+            <label htmlFor="signup-email" style={labelStyle}>Email</label>
             <input
+              id="signup-email"
               type="email"
               placeholder="student@ufl.edu"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              aria-required="true"
+              autoComplete="email"
               style={inputStyle}
             />
           </div>
 
           <div>
-            <label style={labelStyle}>Password</label>
+            <label htmlFor="signup-password" style={labelStyle}>Password</label>
             <input
+              id="signup-password"
               type="password"
               placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              aria-required="true"
+              autoComplete="new-password"
               style={inputStyle}
             />
           </div>

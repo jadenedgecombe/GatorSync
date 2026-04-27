@@ -14,6 +14,7 @@ function Templates() {
 
   const isStaff = user?.role === "admin" || user?.role === "ta";
   const [form, setForm] = useState({ name: "", course_code: "", semester: "", instructor: "" });
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     if (!token) return;
@@ -93,6 +94,16 @@ function Templates() {
         </div>
       )}
 
+      <div style={{ marginBottom: "var(--space-lg)" }}>
+        <input
+          className="form-input search-input"
+          placeholder="Search templates by name, code, or semester…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          aria-label="Search templates"
+        />
+      </div>
+
       {loading ? (
         <div className="empty-state"><p className="empty-state-text">Loading templates...</p></div>
       ) : templates.length === 0 ? (
@@ -102,7 +113,16 @@ function Templates() {
         </div>
       ) : (
         <div className="template-grid">
-          {templates.map((t) => (
+          {templates.filter((t) => {
+            if (!search) return true;
+            const q = search.toLowerCase();
+            return (
+              t.name?.toLowerCase().includes(q) ||
+              t.course_code?.toLowerCase().includes(q) ||
+              t.semester?.toLowerCase().includes(q) ||
+              t.instructor?.toLowerCase().includes(q)
+            );
+          }).map((t) => (
             <div className="card template-card" key={t.id}>
               <div className="template-code">{t.course_code || "—"}</div>
               <div className="template-name">{t.name}</div>

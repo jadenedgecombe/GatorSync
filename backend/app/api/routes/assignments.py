@@ -120,6 +120,10 @@ def _autogenerate_tasks(assignment: Assignment, db: Session) -> None:
 @router.get("", response_model=list[AssignmentResponse])
 def list_assignments(
     course_id: str | None = None,
+    search: str | None = None,
+    assignment_type: str | None = None,
+    skip: int = 0,
+    limit: int = 200,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -133,7 +137,12 @@ def list_assignments(
             q = q.filter(Assignment.course_id == uuid.UUID(course_id))
         except ValueError:
             return []
-    q = q.order_by(Assignment.due_date.asc().nulls_last())
+    if search:
+        term = f"%{search}%"
+        q = q.filter(Assignment.title.ilike(term) | Assignment.description.ilike(term))
+    if assignment_type and assignment_type in ASSIGNMENT_TYPES:
+        q = q.filter(Assignment.assignment_type == assignment_type)
+    q = q.order_by(Assignment.due_date.asc().nulls_last()).offset(skip).limit(limit)
     return [_to_response(a) for a in q.all()]
 
 

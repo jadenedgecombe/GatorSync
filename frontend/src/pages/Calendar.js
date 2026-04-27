@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { apiGet, apiSend } from "../api";
+import { apiGet, apiSend, API_URL } from "../api";
 
 const BUCKET_CLASS = {
   empty: "heatmap-empty",
@@ -179,12 +179,21 @@ function Calendar() {
       )}
 
       <div className="week-controls">
-        <button className="quick-action-btn" onClick={() => shiftWeek(-7)}>{"←"} Prev Week</button>
-        <span className="week-range">
+        <button className="quick-action-btn" onClick={() => shiftWeek(-7)} aria-label="Previous week">{"←"} Prev Week</button>
+        <span className="week-range" aria-live="polite">
           Week of {weekStart.toLocaleDateString([], { month: "short", day: "numeric" })}
         </span>
-        <button className="quick-action-btn" onClick={() => shiftWeek(7)}>Next Week {"→"}</button>
+        <button className="quick-action-btn" onClick={() => shiftWeek(7)} aria-label="Next week">Next Week {"→"}</button>
         <button className="quick-action-btn" onClick={() => setWeekStart(mondayOf(new Date()))}>Today</button>
+        <a
+          href={`${API_URL}/schedule/export.ics?days=30`}
+          download="gatorsync.ics"
+          className="quick-action-btn"
+          aria-label="Export calendar as iCal file"
+          style={{ textDecoration: "none" }}
+        >
+          {"📅"} Export iCal
+        </a>
       </div>
 
       <div className="heatmap-legend">
@@ -207,13 +216,15 @@ function Calendar() {
                 className={`week-col ${BUCKET_CLASS[bucket]} ${isToday ? "week-col-today" : ""}`}
                 onDragOver={onDragOver}
                 onDrop={onDrop(day.date)}
+                role="region"
+                aria-label={`${dayLabel(day.date)}${isToday ? " (today)" : ""}`}
               >
                 <div className="week-col-header">
                   <div className="week-col-day">{dayLabel(day.date)}</div>
-                  <div className="week-col-minutes">{Math.round(day.total_minutes / 60 * 10) / 10}h</div>
+                  <div className="week-col-minutes" aria-label={`${Math.round(day.total_minutes / 60 * 10) / 10} hours scheduled`}>{Math.round(day.total_minutes / 60 * 10) / 10}h</div>
                 </div>
                 {day.tasks.length === 0 ? (
-                  <div className="week-col-empty">—</div>
+                  <div className="week-col-empty" aria-label="No tasks">—</div>
                 ) : (
                   day.tasks.map((t) => (
                     <div
@@ -222,6 +233,8 @@ function Calendar() {
                       draggable
                       onDragStart={onDragStart(t.id)}
                       title="Drag to reschedule"
+                      role="article"
+                      aria-label={`${t.title}${t.is_completed ? " (completed)" : ""}`}
                     >
                       <div className="week-task-row">
                         <input
@@ -229,6 +242,7 @@ function Calendar() {
                           checked={t.is_completed}
                           onChange={() => toggleComplete(t)}
                           onClick={(e) => e.stopPropagation()}
+                          aria-label={`Mark "${t.title}" as ${t.is_completed ? "incomplete" : "complete"}`}
                         />
                         <div className="week-task-title">
                           {t.course_code ? `${t.course_code}` : ""}

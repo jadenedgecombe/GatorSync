@@ -3,6 +3,75 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiGet, apiSend } from "../api";
 
+function EditCourseModal({ course, onClose, onSaved }) {
+  const { token } = useAuth();
+  const [form, setForm] = useState({
+    name: course.name || "",
+    course_code: course.course_code || "",
+    semester: course.semester || "",
+    instructor: course.instructor || "",
+    semester_start: course.semester_start || "",
+    semester_end: course.semester_end || "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      const payload = {};
+      Object.entries(form).forEach(([k, v]) => { if (v !== "") payload[k] = v; });
+      const updated = await apiSend(`/courses/${course.id}`, "PATCH", payload, token);
+      onSaved(updated);
+      onClose();
+    } catch (err) {
+      setError(err.message || "Failed to save.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Edit course">
+      <div className="modal-card">
+        <div className="modal-header">
+          <h2 className="card-title">Edit Course</h2>
+          <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label className="form-label" htmlFor="edit-course-name">Course Name *</label>
+            <input id="edit-course-name" className="form-input" required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-md)" }}>
+            <div className="form-group">
+              <label className="form-label" htmlFor="edit-course-code">Course Code</label>
+              <input id="edit-course-code" className="form-input" value={form.course_code} onChange={(e) => setForm((f) => ({ ...f, course_code: e.target.value }))} />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="edit-semester">Semester</label>
+              <input id="edit-semester" className="form-input" value={form.semester} onChange={(e) => setForm((f) => ({ ...f, semester: e.target.value }))} />
+            </div>
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="edit-instructor">Instructor</label>
+            <input id="edit-instructor" className="form-input" value={form.instructor} onChange={(e) => setForm((f) => ({ ...f, instructor: e.target.value }))} />
+          </div>
+          {error && <div className="form-error" role="alert">{error}</div>}
+          <div style={{ display: "flex", gap: "var(--space-sm)", justifyContent: "flex-end", marginTop: "var(--space-lg)" }}>
+            <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn-primary" disabled={saving} aria-busy={saving}>
+              {saving ? "Saving…" : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function getGreeting() {
   const hour = new Date().getHours();
   if (hour < 12) return "Good morning";
@@ -90,6 +159,8 @@ function Dashboard() {
   const [reminders, setReminders] = useState([]);
   const [todaySchedule, setTodaySchedule] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [taskSearch, setTaskSearch] = useState("");
+  const [editingCourse, setEditingCourse] = useState(null);
 
   const firstName = user?.display_name?.split(" ")[0] || "Gator";
   const isStaff = user?.role === "admin" || user?.role === "ta";
@@ -123,13 +194,14 @@ function Dashboard() {
     () =>
       tasks
         .filter((t) => !t.is_completed)
+        .filter((t) => !taskSearch || t.title.toLowerCase().includes(taskSearch.toLowerCase()))
         .sort((a, b) => {
           if (!a.due_date) return 1;
           if (!b.due_date) return -1;
           return new Date(a.due_date) - new Date(b.due_date);
         })
         .slice(0, 6),
-    [tasks]
+    [tasks, taskSearch]
   );
   const upcomingCount = pendingTasks.length;
   const remindersTodayCount = useMemo(() => {
@@ -154,8 +226,19 @@ function Dashboard() {
       .catch(() => {});
   };
 
+  const handleCourseUpdated = (updated) => {
+    setCourses((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+  };
+
   return (
     <div className="page">
+      {editingCourse && (
+        <EditCourseModal
+          course={editingCourse}
+          onClose={() => setEditingCourse(null)}
+          onSaved={handleCourseUpdated}
+        />
+      )}
       <div className="hero-banner">
         <h1 className="hero-greeting">{getGreeting()}, {firstName}!</h1>
         <p className="hero-message">{heroMessage}</p>
@@ -192,6 +275,14 @@ function Dashboard() {
             <h3 className="card-title">Upcoming Tasks</h3>
             <span className="card-badge">{pendingTasks.length} pending</span>
           </div>
+          <input
+            className="form-input search-input"
+            placeholder="Filter tasks…"
+            value={taskSearch}
+            onChange={(e) => setTaskSearch(e.target.value)}
+            aria-label="Filter tasks"
+            style={{ marginBottom: "var(--space-sm)" }}
+          />
           {loading ? (
             <div className="empty-state"><p className="empty-state-text">Loading tasks...</p></div>
           ) : pendingTasks.length === 0 ? (
@@ -287,6 +378,37 @@ function Dashboard() {
 
         <div className="card">
           <MiniCalendar eventDates={tasks.map((t) => t.due_date).filter(Boolean)} />
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">My Courses</h3>
+            <span className="card-badge">{courses.length} courses</span>
+          </div>
+          {courses.length === 0 ? (
+            <div className="empty-state">
+              <p className="empty-state-text">No courses yet. Upload a syllabus to add one.</p>
+            </div>
+          ) : (
+            <ul className="course-list" aria-label="Course list">
+              {courses.map((c) => (
+                <li className="course-list-item" key={c.id}>
+                  <div className="course-list-info">
+                    <span className="course-list-code">{c.course_code || "—"}</span>
+                    <span className="course-list-name">{c.name}</span>
+                    {c.semester && <span className="course-list-meta">{c.semester}</span>}
+                  </div>
+                  <button
+                    className="btn-ghost"
+                    onClick={() => setEditingCourse(c)}
+                    aria-label={`Edit ${c.name}`}
+                  >
+                    Edit
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>

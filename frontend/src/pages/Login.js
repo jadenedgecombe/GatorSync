@@ -71,25 +71,31 @@ function Login() {
           )}
 
           <div>
-            <label style={labelStyle}>Email</label>
+            <label htmlFor="login-email" style={labelStyle}>Email</label>
             <input
+              id="login-email"
               type="email"
               placeholder="student@ufl.edu"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              aria-required="true"
+              autoComplete="email"
               style={inputStyle}
             />
           </div>
 
           <div>
-            <label style={labelStyle}>Password</label>
+            <label htmlFor="login-password" style={labelStyle}>Password</label>
             <input
+              id="login-password"
               type="password"
               placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              aria-required="true"
+              autoComplete="current-password"
               style={inputStyle}
             />
           </div>

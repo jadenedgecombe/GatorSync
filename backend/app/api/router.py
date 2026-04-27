@@ -7,8 +7,10 @@ from app.api.routes import (
     courses,
     db_check,
     health,
+    preferences,
     reminders,
     schedule,
+    study_sessions,
     syllabus,
     tasks,
     templates,
@@ -27,3 +29,5 @@ api_router.include_router(templates.router, prefix="/templates", tags=["template
 api_router.include_router(syllabus.router, prefix="/syllabus", tags=["syllabus"])
 api_router.include_router(schedule.router, prefix="/schedule", tags=["schedule"])
 api_router.include_router(reminders.router, prefix="/reminders", tags=["reminders"])
+api_router.include_router(preferences.router, prefix="/preferences", tags=["preferences"])
+api_router.include_router(study_sessions.router, prefix="/study-sessions", tags=["study-sessions"])

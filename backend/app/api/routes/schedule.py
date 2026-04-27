@@ -8,12 +8,14 @@
 
 from __future__ import annotations
 
+import textwrap
 from collections import defaultdict
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Iterable
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -246,4 +248,93 @@ def overload(
         minutes=minutes,
         is_overloaded=minutes >= OVERLOAD_MINUTES,
         threshold_minutes=OVERLOAD_MINUTES,
+    )
+
+
+def _ical_escape(text: str) -> str:
+    return text.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
+
+
+def _fold_line(line: str) -> str:
+    """Fold long iCal lines at 75 octets as per RFC 5545."""
+    if len(line.encode()) <= 75:
+        return line
+    result = []
+    while len(line.encode()) > 75:
+        chunk = line[:75]
+        while len(chunk.encode()) > 75:
+            chunk = chunk[:-1]
+        result.append(chunk)
+        line = " " + line[len(chunk):]
+    result.append(line)
+    return "\r\n".join(result)
+
+
+@router.get("/export.ics")
+def export_ical(
+    days: int = Query(30, ge=1, le=180, description="Number of days to export"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Export tasks as an iCalendar (.ics) file for import into Google Calendar, Apple Calendar, etc."""
+    start_date = _local_today()
+    end_date = start_date + timedelta(days=days - 1)
+    range_start, _ = _day_bounds(start_date)
+    _, range_end = _day_bounds(end_date)
+
+    rows = _fetch_tasks_between(current_user, range_start, range_end, db)
+
+    now_stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//GatorSync//GatorSync//EN",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+        f"X-WR-CALNAME:GatorSync — {_ical_escape(current_user.display_name)}",
+        "X-WR-TIMEZONE:America/New_York",
+    ]
+
+    for t, a, c in rows:
+        uid = f"{t.id}@gatorsync"
+        summary = _ical_escape(t.title)
+        if c.course_code:
+            summary = f"{_ical_escape(c.course_code)}: {summary}"
+
+        anchor = t.scheduled_start or t.due_date
+        if not anchor:
+            continue
+        if anchor.tzinfo is None:
+            anchor = anchor.replace(tzinfo=timezone.utc)
+
+        dtstart = anchor.strftime("%Y%m%dT%H%M%SZ")
+        end_dt = anchor + timedelta(minutes=max(t.duration_minutes, 30))
+        dtend = end_dt.strftime("%Y%m%dT%H%M%SZ")
+
+        description_parts = []
+        if a.assignment_type:
+            description_parts.append(f"Type: {a.assignment_type}")
+        if a.due_date:
+            description_parts.append(f"Due: {a.due_date.strftime('%b %d, %Y %I:%M %p')}")
+        description = _ical_escape(" | ".join(description_parts))
+
+        lines += [
+            "BEGIN:VEVENT",
+            _fold_line(f"UID:{uid}"),
+            f"DTSTAMP:{now_stamp}",
+            f"DTSTART:{dtstart}",
+            f"DTEND:{dtend}",
+            _fold_line(f"SUMMARY:{summary}"),
+            _fold_line(f"DESCRIPTION:{description}"),
+            f"STATUS:{'COMPLETED' if t.is_completed else 'CONFIRMED'}",
+            "END:VEVENT",
+        ]
+
+    lines.append("END:VCALENDAR")
+    content = "\r\n".join(lines) + "\r\n"
+
+    return Response(
+        content=content,
+        media_type="text/calendar; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=gatorsync.ics"},
     )

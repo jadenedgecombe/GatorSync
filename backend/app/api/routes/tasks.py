@@ -60,6 +60,9 @@ def _to_response(t: Task, a: Assignment, c: Course) -> TaskResponse:
 @router.get("", response_model=list[TaskResponse])
 def list_tasks(
     include_completed: bool = False,
+    search: str | None = None,
+    skip: int = 0,
+    limit: int = 200,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -71,7 +74,9 @@ def list_tasks(
     )
     if not include_completed:
         q = q.filter(Task.is_completed.is_(False))
-    rows = q.order_by(Task.due_date.asc().nulls_last()).all()
+    if search:
+        q = q.filter(Task.title.ilike(f"%{search}%"))
+    rows = q.order_by(Task.due_date.asc().nulls_last()).offset(skip).limit(limit).all()
     return [_to_response(t, a, c) for (t, a, c) in rows]
 
 

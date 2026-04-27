@@ -61,15 +61,21 @@ def _to_response(c: Course) -> CourseResponse:
 
 @router.get("", response_model=list[CourseResponse])
 def list_courses(
+    search: str | None = None,
+    skip: int = 0,
+    limit: int = 100,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    courses = (
-        db.query(Course)
-        .filter(Course.user_id == current_user.id, Course.is_template.is_(False))
-        .order_by(Course.created_at.desc())
-        .all()
+    q = db.query(Course).filter(
+        Course.user_id == current_user.id, Course.is_template.is_(False)
     )
+    if search:
+        term = f"%{search}%"
+        q = q.filter(
+            Course.name.ilike(term) | Course.course_code.ilike(term) | Course.instructor.ilike(term)
+        )
+    courses = q.order_by(Course.created_at.desc()).offset(skip).limit(limit).all()
     return [_to_response(c) for c in courses]
 
 

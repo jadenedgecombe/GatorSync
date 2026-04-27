@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Routes, Route, NavLink, Link, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -11,6 +11,8 @@ import Calendar from "./pages/Calendar";
 import Templates from "./pages/Templates";
 import AdminPanel from "./pages/AdminPanel";
 import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
+import StudySessions from "./pages/StudySessions";
 import Forbidden from "./pages/Forbidden";
 import "./App.css";
 
@@ -18,6 +20,14 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const { user, loading, logout } = useAuth();
+
+  // Restore dark mode from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("dark_mode");
+    if (saved === "1") {
+      document.documentElement.setAttribute("data-theme", "dark");
+    }
+  }, []);
 
   const closeSidebar = () => setSidebarOpen(false);
 
@@ -63,14 +73,14 @@ function App() {
         onClick={closeSidebar}
       />
 
-      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
-        <Link to="/" className="sidebar-brand" onClick={closeSidebar}>
-          <div className="sidebar-logo">G</div>
+      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`} aria-label="Main sidebar">
+        <Link to="/" className="sidebar-brand" onClick={closeSidebar} aria-label="GatorSync home">
+          <div className="sidebar-logo" aria-hidden="true">G</div>
           <span className="sidebar-brand-text">GatorSync</span>
         </Link>
 
-        <nav className="sidebar-nav">
-          <span className="sidebar-section-label">Menu</span>
+        <nav className="sidebar-nav" aria-label="Primary navigation">
+          <span className="sidebar-section-label" aria-hidden="true">Menu</span>
 
           <NavLink
             to="/dashboard"
@@ -110,6 +120,15 @@ function App() {
             Templates
           </NavLink>
 
+          <NavLink
+            to="/study-sessions"
+            className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
+            onClick={closeSidebar}
+          >
+            <span className="sidebar-link-icon">{"📖"}</span>
+            Study Sessions
+          </NavLink>
+
           {isStaff && (
             <>
               <span className="sidebar-section-label">Staff</span>
@@ -133,6 +152,15 @@ function App() {
           >
             <span className="sidebar-link-icon">{"👤"}</span>
             My Profile
+          </NavLink>
+
+          <NavLink
+            to="/settings"
+            className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
+            onClick={closeSidebar}
+          >
+            <span className="sidebar-link-icon">{"⚙️"}</span>
+            Settings
           </NavLink>
         </nav>
 
@@ -176,6 +204,8 @@ function App() {
             <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
             <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/study-sessions" element={<ProtectedRoute><StudySessions /></ProtectedRoute>} />
             <Route path="/admin" element={
               <ProtectedRoute>
                 {isStaff ? <AdminPanel /> : <Forbidden />}
