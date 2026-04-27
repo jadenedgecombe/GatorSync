@@ -8,7 +8,6 @@
 
 from __future__ import annotations
 
-import textwrap
 from collections import defaultdict
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Iterable
